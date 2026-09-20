@@ -1,0 +1,88 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ---------------------------------------------------------
+    // GLOBALS & HELPERS
+    // ---------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // Role helpers
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    
+    function getInstitutionData(instId) {
+      return get(/databases/$(database)/documents/institutions/$(instId)).data;
+    }
+
+    // ---------------------------------------------------------
+    // VALIDATION BLUEPRINTS
+    // ---------------------------------------------------------
+    
+    function isValidUser(data) {
+      return data.uid == request.auth.uid 
+        && data.email is string
+        && data.role == 'owner';
+    }
+
+    function isValidInstitution(data) {
+      return data.name is string && data.name.size() <= 200
+        && data.placeId is string
+        && data.ownerId == request.auth.uid
+        && data.type in ['School', 'Office', 'Residential', 'Park', 'University', 'Other'];
+    }
+
+    function isValidRecord(data) {
+      return data.institutionId is string
+        && data.unitId is string
+        && data.weight is number
+        && data.ch4 is number
+        && data.co2e is number
+        && data.submittedBy == request.auth.uid
+        && data.date is string;
+    }
+
+    // ---------------------------------------------------------
+    // MATCH BLOCKS
+    // ---------------------------------------------------------
+
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if false;
+      allow create, update: if isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /institutions/{instId} {
+      allow get, list: if true; // Public for search & verification
+      allow create: if isSignedIn() && isValidInstitution(incoming());
+      allow update: if isSignedIn() && (resource == null || existing().ownerId == request.auth.uid)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'address', 'verified', 'type', 'units']);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+      
+      // Sub-collections
+      match /units/{unitId} {
+        allow get, list: if true;
+        allow create, update, delete: if isSignedIn();
+      }
+
+      match /records/{recordId} {
+        allow get, list: if true; // Public dashboard visibility
+        allow create: if isSignedIn() && isValidRecord(incoming());
+        allow update, delete: if isSignedIn();
+      }
+    }
+
+    match /emission_records/{recordId} {
+      allow get, list: if true;
+      allow create, update, delete: if isSignedIn();
+    }
+  }
+}
+

@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "System user with institution linkage",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["owner"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Institution": {
+      "title": "Institution",
+      "description": "Master institution (Eco-Hub) for emission tracking",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 200 },
+        "placeId": { "type": "string" },
+        "address": { "type": "string" },
+        "ownerId": { "type": "string", "description": "The 'User Utama' who registered it" },
+        "ownerEmail": { "type": "string" },
+        "type": { "type": "string", "enum": ["School", "Office", "Residential", "Park", "University", "Other"] },
+        "verified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "placeId", "ownerId", "ownerEmail", "type", "createdAt"]
+    },
+    "Unit": {
+      "title": "Unit",
+      "description": "Specific sub-unit within an institution",
+      "type": "object",
+      "properties": {
+        "institutionId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["institutionId", "name", "createdAt"]
+    },
+    "EmissionRecord": {
+      "title": "Emission Record",
+      "description": "Individual weight and emission data point with documentation",
+      "type": "object",
+      "properties": {
+        "institutionId": { "type": "string" },
+        "unitId": { "type": "string" },
+        "weight": { "type": "number" },
+        "ch4": { "type": "number" },
+        "co2e": { "type": "number" },
+        "category": { "type": "string" },
+        "documentationUrl": { "type": "string", "description": "URL to proof image" },
+        "submittedBy": { "type": "string", "description": "UID of the user who entered the data" },
+        "date": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["institutionId", "unitId", "weight", "ch4", "co2e", "submittedBy", "date", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/institutions/{institutionId}": {
+      "schema": "Institution",
+      "description": "Registered institutions"
+    },
+    "/institutions/{institutionId}/units/{unitId}": {
+      "schema": "Unit",
+      "description": "Sub-units for an institution"
+    },
+    "/institutions/{institutionId}/records/{recordId}": {
+      "schema": "EmissionRecord",
+      "description": "Penimbangan records"
+    }
+  }
+}
